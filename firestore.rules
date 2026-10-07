@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check user roles
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
+    function isVendor() { return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendor'; }
+    function isCustomer() { return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'customer'; }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Shops Collection
+    match /shops/{shopId} {
+      allow read: if true; // Anyone can browse shops
+      allow create: if isVendor();
+      allow update, delete: if isVendor() && resource.data.ownerId == request.auth.uid || isAdmin();
+    }
+
+    // Products Collection
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isVendor();
+      allow update, delete: if isVendor() && resource.data.vendorId == request.auth.uid || isAdmin();
+    }
+
+    // Orders Collection - Enforces your business model
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.vendorId == request.auth.uid || isAdmin());
+      allow create: if isCustomer(); 
+      allow update: if isAdmin() || 
+        (isVendor() && resource.data.vendorId == request.auth.uid && request.resource.data.status in ['Confirmed', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Delivered', 'Cancelled']) ||
+        (isCustomer() && resource.data.customerId == request.auth.uid && request.resource.data.status == 'Cancelled');
+      allow delete: if isAdmin();
+    }
+
+    // Addresses
+    match /addresses/{addressId} {
+      allow read, write: if isSignedIn() && request.auth.uid == resource.data.userId || isAdmin();
+    }
+
+    // Complaints & Refunds
+    match /complaints/{complaintId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read, write: if isSignedIn() && request.auth.uid == resource.data.userId || isAdmin();
+    }
+  }
+}

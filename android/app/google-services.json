@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "839737653856",
+    "project_id": "gombestore-project",
+    "storage_bucket": "gombestore-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:839737653856:android:d777d09b48c503cfdca105",
+        "android_client_info": {
+          "package_name": "com.gombestore.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5OIMK5PE2uOG44b6JfljrGEyLjvnekxY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
