@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.notifications_none),
             onPressed: () {},
           ),
-          // --- NEW CART ICON WITH BADGE ---
+          // --- CART ICON WITH BADGE ---
           Consumer<CartService>(
             builder: (context, cart, child) => Stack(
               children: [
@@ -83,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          // ---------------------------------
         ],
       ),
       body: Column(
@@ -108,124 +107,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // 3. Category Filter Chips
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _categories.length,
-              itemBuilder: (context, index) {
-                final category = _categories[index];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: FilterChip(
-                    label: Text(category),
-                    selected: _selectedCategory == category,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedCategory = selected ? category : 'All';
-                        _filterProducts(_searchController.text);
-                      });
-                    },
-                    selectedColor: const Color(0xFF2E7D32).withOpacity(0.2),
-                    checkmarkColor: const Color(0xFF2E7D32),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // 4. Product Grid
-          Expanded(
-            child: _filteredProducts.isEmpty
-                ? const Center(child: Text('No products found.'))
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.75,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: _filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      final product = _filteredProducts[index];
-                      return _buildProductCard(product);
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 5. Product Card Widget
-  Widget _buildProductCard(Product product) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
-        );
-      },
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  product.imageUrl,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                  ),
-                ),
-              ),
-            ),
-            // Details
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.shopName,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '₦${product.price.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: Color(0xFF2E7D32),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
           // 3. Category Filter Chips
           SizedBox(
             height: 50,
