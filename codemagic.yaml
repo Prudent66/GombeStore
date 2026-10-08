@@ -4,9 +4,10 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
+      java: 17
     scripts:
       - name: Generate Android files
-        script: flutter create --org com.gombestore --project-name gombestore .
+        script: flutter create --org com.gombestore --project-name gombestore --platforms android .
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build APK
