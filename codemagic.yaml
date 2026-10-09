@@ -11,8 +11,8 @@ workflows:
         script: flutter pub get
       - name: Fix compileSdk
         script: |
-          sed -i '' 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/' android/app/build.gradle.kts
-          sed -i '' 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/' android/app/build.gradle.kts
+          sed -i '' 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
+          sed -i '' 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' android/app/build.gradle.kts
       - name: Build APK
         script: flutter build apk --release
     artifacts:
