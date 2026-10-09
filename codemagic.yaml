@@ -7,12 +7,12 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Regenerate Android files
-        script: |
-          rm -rf android
-          flutter create --org com.gombestore --project-name gombestore --platforms android .
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Fix compileSdk
+        script: |
+          sed -i '' 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/' android/app/build.gradle.kts
+          sed -i '' 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/' android/app/build.gradle.kts
       - name: Build APK
         script: flutter build apk --release
     artifacts:
