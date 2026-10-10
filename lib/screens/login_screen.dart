@@ -27,11 +27,22 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (error == null) {
-      // 1. Get the user's role from Firestore
       final user = _authService.currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        final role = doc.data()?['role'] ?? 'customer';
+        String role = 'customer';
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get()
+              .timeout(const Duration(seconds: 5));
+
+          if (doc.exists) {
+            role = doc.data()?['role'] ?? 'customer';
+          }
+        } catch (e) {
+          debugPrint('Firestore error: $e');
+        }
 
         setState(() => _isLoading = false);
 
