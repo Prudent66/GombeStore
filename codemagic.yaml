@@ -9,14 +9,31 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Fix compileSdk
+      - name: Fix compileSdk in app
         script: |
           sed -i '' 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
           sed -i '' 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' android/app/build.gradle.kts
-      - name: Remove package attribute from AndroidManifest
+      - name: Patch plugin build.gradle files in pub cache
+        script: |
+          echo "Patching plugin build.gradle files to compileSdk 36..."
+          find $HOME/.pub-cache -name "build.gradle" -path "*android*" -exec sed -i '' \
+            -e 's/compileSdkVersion 33/compileSdkVersion 36/g' \
+            -e 's/compileSdk 33/compileSdk 36/g' \
+            -e 's/compileSdkVersion = 33/compileSdkVersion = 36/g' \
+            -e 's/compileSdk = 33/compileSdk = 36/g' \
+            -e 's/compileSdkVersion 34/compileSdkVersion 36/g' \
+            -e 's/compileSdk 34/compileSdk 36/g' \
+            -e 's/compileSdkVersion = 34/compileSdkVersion = 36/g' \
+            -e 's/compileSdk = 34/compileSdk = 36/g' \
+            {} \; || true
+          find $HOME/.pub-cache -name "build.gradle.kts" -path "*android*" -exec sed -i '' \
+            -e 's/compileSdk = 33/compileSdk = 36/g' \
+            -e 's/compileSdk = 34/compileSdk = 36/g' \
+            {} \; || true
+          echo "Patching done."
+      - name: Remove package attribute
         script: |
           sed -i '' 's/package="com.gombestore.app"//g' android/app/src/main/AndroidManifest.xml
-          sed -i '' 's/package="com.GombeStore.app"//g' android/app/src/main/AndroidManifest.xml
       - name: Build APK
         script: flutter build apk --release
     artifacts:
