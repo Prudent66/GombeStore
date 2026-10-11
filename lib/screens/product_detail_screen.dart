@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/product.dart';
@@ -19,17 +20,24 @@ class ProductDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Product Image
-            Image.network(
-              product.imageUrl,
-              width: double.infinity,
-              height: 300,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                height: 300,
-                color: Colors.grey[200],
-                child: const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
-              ),
-            ),
+            product.imageData != null && product.imageData!.isNotEmpty
+    ? Image.memory(
+        base64Decode(product.imageData!),
+        width: double.infinity,
+        height: 300,
+        fit: BoxFit.cover,
+      )
+    : Image.network(
+        product.imageUrl,
+        width: double.infinity,
+        height: 300,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: 300,
+          color: Colors.grey[200],
+          child: const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
+        ),
+      ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(

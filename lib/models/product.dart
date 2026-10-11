@@ -7,6 +7,7 @@ class Product {
   final double price;
   final String category;
   final String imageUrl;
+  final String? imageData;
   final String shopName;
   final String shopId;
   final int stock;
@@ -19,6 +20,7 @@ class Product {
     required this.price,
     required this.category,
     required this.imageUrl,
+    this.imageData,
     required this.shopName,
     required this.shopId,
     this.stock = 0,
@@ -34,6 +36,7 @@ class Product {
       price: (data['price'] ?? 0).toDouble(),
       category: data['category'] ?? 'Other',
       imageUrl: data['imageUrl'] ?? '',
+      imageData: data['imageData'],
       shopName: data['shopName'] ?? 'Unknown Shop',
       shopId: data['vendorId'] ?? '',
       stock: data['stock'] ?? 0,
@@ -48,6 +51,7 @@ class Product {
       'price': price,
       'category': category,
       'imageUrl': imageUrl,
+      'imageData': imageData,
       'shopName': shopName,
       'vendorId': shopId,
       'stock': stock,
