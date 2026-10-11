@@ -1,3 +1,4 @@
+import 'admin_seed_screen.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'admin_approvals_screen.dart';
@@ -55,6 +56,12 @@ class AdminDashboard extends StatelessWidget {
               label: 'Vendor Approvals',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen())),
             ),
+	    _buildMenuItem(
+	      context,
+  	      icon: Icons.cloud_upload,
+  	      label: 'Seed Sample Products',
+  	      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSeedScreen())),
+	    ),
             _buildMenuItem(
               context,
               icon: Icons.local_shipping,

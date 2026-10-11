@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
 import '../services/cart_service.dart';
 import 'product_detail_screen.dart';
@@ -13,40 +14,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 1. Mock Data (Fake products for now)
-  final List<Product> _allProducts = [
-    Product(id: '1', name: 'Fresh Tomatoes (Basket)', description: 'Locally grown fresh tomatoes from Kaltungo.', price: 4500, category: 'Food & Grocery', imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500', shopName: 'Gombe Fresh Mart', shopId: 's1'),
-    Product(id: '2', name: 'Samsung Galaxy A15', description: 'Brand new Samsung A15 with 128GB storage.', price: 185000, category: 'Electronics', imageUrl: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=500', shopName: 'Tech Hub Gombe', shopId: 's2'),
-    Product(id: '3', name: 'Men\'s Kaftan', description: 'Premium quality Kaftan for special occasions.', price: 12000, category: 'Fashion', imageUrl: 'https://images.unsplash.com/photo-1594938298603-c8148c47e35d?w=500', shopName: 'Zainab Fashion', shopId: 's3'),
-    Product(id: '4', name: 'Bag of Rice (50kg)', description: 'Quality local rice, perfect for family meals.', price: 65000, category: 'Food & Grocery', imageUrl: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500', shopName: 'Gombe Fresh Mart', shopId: 's1'),
-    Product(id: '5', name: 'Wireless Earbuds', description: 'Noise cancelling earbuds with long battery life.', price: 15000, category: 'Electronics', imageUrl: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500', shopName: 'Tech Hub Gombe', shopId: 's2'),
-    Product(id: '6', name: 'Women\'s Abaya', description: 'Elegant black Abaya with embroidery.', price: 18000, category: 'Fashion', imageUrl: 'https://images.unsplash.com/photo-1596783074918-c84cb06531ca?w=500', shopName: 'Zainab Fashion', shopId: 's3'),
-  ];
-
-  List<Product> _filteredProducts = [];
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'All';
+  String _searchQuery = '';
 
   final List<String> _categories = [
     'All', 'Food & Grocery', 'Electronics', 'Fashion', 'Home & Living', 'Health'
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredProducts = _allProducts; // Show all products initially
-  }
-
-  void _filterProducts(String query) {
-    setState(() {
-      _filteredProducts = _allProducts.where((product) {
-        final matchesSearch = product.name.toLowerCase().contains(query.toLowerCase()) ||
-                              product.shopName.toLowerCase().contains(query.toLowerCase());
-        final matchesCategory = _selectedCategory == 'All' || product.category == _selectedCategory;
-        return matchesSearch && matchesCategory;
-      }).toList();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.notifications_none),
             onPressed: () {},
           ),
-          // --- CART ICON WITH BADGE ---
           Consumer<CartService>(
             builder: (context, cart, child) => Stack(
               children: [
@@ -87,12 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // 2. Search Bar
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
-              onChanged: _filterProducts,
+              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
               decoration: InputDecoration(
                 hintText: 'Search products or stores...',
                 prefixIcon: const Icon(Icons.search),
@@ -106,8 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // 3. Category Filter Chips
+          // Category Filter Chips
           SizedBox(
             height: 50,
             child: ListView.builder(
@@ -122,10 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: Text(category),
                     selected: _selectedCategory == category,
                     onSelected: (selected) {
-                      setState(() {
-                        _selectedCategory = selected ? category : 'All';
-                        _filterProducts(_searchController.text);
-                      });
+                      setState(() => _selectedCategory = selected ? category : 'All');
                     },
                     selectedColor: const Color(0xFF2E7D32).withOpacity(0.2),
                     checkmarkColor: const Color(0xFF2E7D32),
@@ -135,33 +104,101 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 10),
-
-          // 4. Product Grid
+          // Products from Firestore
           Expanded(
-            child: _filteredProducts.isEmpty
-                ? const Center(child: Text('No products found.'))
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.75,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('products')
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                // Loading state
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                // Error state
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                          const SizedBox(height: 10),
+                          Text('Error loading products:\n${snapshot.error}',
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
                     ),
-                    itemCount: _filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      final product = _filteredProducts[index];
-                      return _buildProductCard(product);
-                    },
+                  );
+                }
+                // Empty state
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No products yet',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Vendors haven\'t added any products.\nPlease check back later.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                // Filter products
+                final allProducts = snapshot.data!.docs
+                    .map((doc) => Product.fromFirestore(doc))
+                    .where((p) => p.isAvailable)
+                    .toList();
+
+                final filtered = allProducts.where((product) {
+                  final matchesSearch = _searchQuery.isEmpty ||
+                      product.name.toLowerCase().contains(_searchQuery) ||
+                      product.shopName.toLowerCase().contains(_searchQuery);
+                  final matchesCategory =
+                      _selectedCategory == 'All' || product.category == _selectedCategory;
+                  return matchesSearch && matchesCategory;
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('No products match your search.'));
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
                   ),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    return _buildProductCard(context, filtered[index]);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  // 5. Product Card Widget
-  Widget _buildProductCard(Product product) {
+  Widget _buildProductCard(BuildContext context, Product product) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -175,7 +212,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
@@ -190,7 +226,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            // Details
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
@@ -205,6 +240,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 4),
                   Text(
                     product.shopName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: Colors.grey[600], fontSize: 11),
                   ),
                   const SizedBox(height: 6),
