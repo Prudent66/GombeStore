@@ -1,11 +1,26 @@
-import 'admin_seed_screen.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'admin_approvals_screen.dart';
 import 'admin_shipping_screen.dart';
+import 'admin_seed_screen.dart';
+import 'admin_orders_screen.dart';
+import 'admin_complaints_screen.dart';
+import 'admin_customers_screen.dart';
+import 'login_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
+
+  void _logout(BuildContext context) async {
+    await AuthService().signOut();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,12 +30,8 @@ class AdminDashboard extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthService().signOut();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
+            tooltip: 'Logout',
+            onPressed: () => _logout(context),
           ),
         ],
       ),
@@ -29,7 +40,8 @@ class AdminDashboard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Welcome, Admin', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+            const Text('Welcome, Admin',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
             const SizedBox(height: 20),
 
             // Stats Grid
@@ -40,10 +52,20 @@ class AdminDashboard extends StatelessWidget {
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
               children: [
-                _buildStatTile('Vendors', Icons.store, Colors.blue),
-                _buildStatTile('Orders', Icons.shopping_bag, Colors.orange),
-                _buildStatTile('Customers', Icons.people, Colors.purple),
-                _buildStatTile('Revenue', Icons.attach_money, Colors.green),
+                _buildStatTile('Vendors', Icons.store, Colors.blue, () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()));
+                }),
+                _buildStatTile('Orders', Icons.shopping_bag, Colors.orange, () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersScreen()));
+                }),
+                _buildStatTile('Customers', Icons.people, Colors.purple, () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCustomersScreen()));
+                }),
+                _buildStatTile('Revenue', Icons.attach_money, Colors.green, () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Revenue reports coming soon!')),
+                  );
+                }),
               ],
             ),
             const SizedBox(height: 30),
@@ -56,12 +78,12 @@ class AdminDashboard extends StatelessWidget {
               label: 'Vendor Approvals',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen())),
             ),
-	    _buildMenuItem(
-	      context,
-  	      icon: Icons.cloud_upload,
-  	      label: 'Seed Sample Products',
-  	      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSeedScreen())),
-	    ),
+            _buildMenuItem(
+              context,
+              icon: Icons.cloud_upload,
+              label: 'Seed Sample Products',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSeedScreen())),
+            ),
             _buildMenuItem(
               context,
               icon: Icons.local_shipping,
@@ -72,13 +94,13 @@ class AdminDashboard extends StatelessWidget {
               context,
               icon: Icons.receipt_long,
               label: 'Manage Orders',
-              onTap: () {}, // Future
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersScreen())),
             ),
             _buildMenuItem(
               context,
               icon: Icons.report_problem,
               label: 'Complaints & Refunds',
-              onTap: () {}, // Future
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminComplaintsScreen())),
             ),
           ],
         ),
@@ -86,20 +108,24 @@ class AdminDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatTile(String title, IconData icon, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5)],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 40, color: color),
-          const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        ],
+  Widget _buildStatTile(String title, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: color),
+            const SizedBox(height: 10),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
       ),
     );
   }
