@@ -165,10 +165,10 @@ class VendorOrdersScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Incoming Orders')),
       body: StreamBuilder<QuerySnapshot>(
+        // Sorted client-side to avoid needing a composite index in Firestore
         stream: FirebaseFirestore.instance
             .collection('orders')
             .where('vendorId', isEqualTo: user.uid)
-            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -190,11 +190,18 @@ class VendorOrdersScreen extends StatelessWidget {
             );
           }
 
+          final docs = snapshot.data!.docs.toList()
+            ..sort((a, b) {
+              final ta = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+              final tb = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+              return (tb ?? Timestamp(0, 0)).compareTo(ta ?? Timestamp(0, 0));
+            });
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
+              final doc = docs[index];
               final order = doc.data() as Map<String, dynamic>;
               final status = order['status'] ?? 'Pending';
               final items = (order['items'] as List<dynamic>? ?? []);

@@ -60,5 +60,11 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read, write: if isSignedIn() && request.auth.uid == resource.data.userId || isAdmin();
     }
+
+    // Settings (shipping fees etc.) - admin writes, signed-in users read
+    match /settings/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
   }
 }
