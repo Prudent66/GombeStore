@@ -27,7 +27,10 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow create: if isVendor();
-      allow update, delete: if isVendor() && resource.data.vendorId == request.auth.uid || isAdmin();
+      // Customers may only touch stock/isAvailable (auto-deduction at checkout)
+      allow update: if isVendor() && resource.data.vendorId == request.auth.uid || isAdmin()
+        || (isCustomer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'isAvailable']));
+      allow delete: if isVendor() && resource.data.vendorId == request.auth.uid || isAdmin();
     }
 
     // Orders Collection - Enforces your business model
