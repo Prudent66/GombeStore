@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/cart_service.dart';
+import '../services/order_service.dart';
+import 'my_orders_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -11,7 +15,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Address Controllers
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -22,10 +26,130 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _instructionsController = TextEditingController();
 
   String _selectedLGA = 'Gombe Town'; // Default
+  bool _isPlacing = false;
 
   final List<String> _lgas = [
     'Gombe Town', 'Kumo', 'Bajoga', 'Kaltungo', 'Nafada', 'Yamaltu', 'Billiri'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShippingFees();
+    _prefillProfile();
+  }
+
+  // Load admin-configured shipping fees from settings/shipping
+  void _loadShippingFees() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('shipping')
+          .get()
+          .timeout(const Duration(seconds: 5));
+      if (doc.exists && mounted) {
+        Provider.of<CartService>(context, listen: false).setRemoteFees(doc.data()!);
+      }
+    } catch (_) {
+      // Offline or not configured: CartService falls back to default fees
+    }
+  }
+
+  // Pre-fill name and phone from the user's profile
+  void _prefillProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get()
+          .timeout(const Duration(seconds: 5));
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        if ((data['fullName'] ?? '').isNotEmpty) {
+          _nameController.text = data['fullName'];
+        }
+        if ((data['phone'] ?? '').isNotEmpty) {
+          _phoneController.text = data['phone'];
+        }
+      }
+    } catch (_) {
+      // Offline: user can type details manually
+    }
+  }
+
+  void _placeOrder() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final cart = Provider.of<CartService>(context, listen: false);
+    setState(() => _isPlacing = true);
+
+    final error = await OrderService().placeOrder(
+      items: cart.items,
+      quantities: cart.quantities,
+      fullName: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      lga: _selectedLGA,
+      city: _cityController.text.trim(),
+      area: _areaController.text.trim(),
+      street: _streetController.text.trim(),
+      landmark: _landmarkController.text.trim(),
+      instructions: _instructionsController.text.trim(),
+      shippingFee: cart.getShippingFee(_selectedLGA),
+    );
+
+    if (!mounted) return;
+    setState(() => _isPlacing = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    cart.clearCart();
+
+    // Success dialog, then straight to My Orders
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 60),
+        title: const Text('Order Placed!'),
+        content: const Text(
+          'Your order has been sent to the store(s).\nPay with cash on delivery.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.popUntil(context, (route) => route.isFirst);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+              );
+            },
+            child: const Text('View My Orders'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _cityController.dispose();
+    _areaController.dispose();
+    _streetController.dispose();
+    _landmarkController.dispose();
+    _instructionsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +168,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 10),
               _buildField(_nameController, 'Full Name'),
               _buildField(_phoneController, 'Phone Number', keyboard: TextInputType.phone),
-              
+
               // LGA Dropdown
               DropdownButtonFormField<String>(
                 value: _selectedLGA,
@@ -70,28 +194,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               _summaryRow('Shipping Fee', '₦${cart.getShippingFee(_selectedLGA).toStringAsFixed(0)}'),
               const Divider(),
               _summaryRow('Grand Total', '₦${cart.getGrandTotal(_selectedLGA).toStringAsFixed(0)}', isBold: true),
+              const SizedBox(height: 6),
+              const Text('Payment Method: Cash on Delivery', style: TextStyle(fontSize: 13, color: Colors.grey)),
 
               const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      // Here we will eventually send the order to Firestore
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Order Placed! (Demo)'), backgroundColor: Color(0xFF2E7D32)),
-                      );
-                      cart.clearCart();
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                    }
-                  },
+                  onPressed: _isPlacing ? null : _placeOrder,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2E7D32),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Place Order', style: TextStyle(fontSize: 18)),
+                  child: _isPlacing
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Text('Place Order', style: TextStyle(fontSize: 18)),
                 ),
               ),
             ],

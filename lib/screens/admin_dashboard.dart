@@ -6,6 +6,7 @@ import 'admin_seed_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_complaints_screen.dart';
 import 'admin_customers_screen.dart';
+import 'admin_revenue_screen.dart';
 import 'login_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
@@ -62,9 +63,7 @@ class AdminDashboard extends StatelessWidget {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCustomersScreen()));
                 }),
                 _buildStatTile('Revenue', Icons.attach_money, Colors.green, () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Revenue reports coming soon!')),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminRevenueScreen()));
                 }),
               ],
             ),
