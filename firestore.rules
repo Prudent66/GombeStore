@@ -27,17 +27,18 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow create: if isVendor();
-      // Customers may only touch stock/isAvailable (auto-deduction at checkout)
+      // Signed-in users may only touch stock/isAvailable (auto-deduction at checkout)
       allow update: if isVendor() && resource.data.vendorId == request.auth.uid || isAdmin()
-        || (isCustomer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'isAvailable']));
+        || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'isAvailable']));
       allow delete: if isVendor() && resource.data.vendorId == request.auth.uid || isAdmin();
     }
 
     // Orders Collection - Enforces your business model
     match /orders/{orderId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.vendorId == request.auth.uid || isAdmin());
-      allow create: if isCustomer(); 
-      allow update: if isAdmin() || 
+      // Any signed-in user can order, but only in their own name
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow update: if isAdmin() ||
         (isVendor() && resource.data.vendorId == request.auth.uid && request.resource.data.status in ['Confirmed', 'Processing', 'Ready for Pickup', 'Out for Delivery', 'Delivered', 'Cancelled']) ||
         (isCustomer() && resource.data.customerId == request.auth.uid && request.resource.data.status == 'Cancelled');
       allow delete: if isAdmin();
