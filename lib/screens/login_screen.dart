@@ -19,6 +19,31 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
 
+  /// Fetches the user's role with retries. On a slow connection a single
+  /// Firestore read can time out — retrying prevents vendors from being
+  /// dropped into the customer view.
+  Future<String> _fetchRole(String uid) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get()
+            .timeout(const Duration(seconds: 4));
+        if (doc.exists) {
+          final role = (doc.data()?['role'] ?? '').toString();
+          if (role.isNotEmpty) return role;
+        }
+        // Profile missing or not synced yet — wait briefly and retry
+        await Future.delayed(const Duration(milliseconds: 800));
+      } catch (e) {
+        debugPrint('Role fetch attempt $attempt failed: $e');
+        await Future.delayed(const Duration(milliseconds: 800));
+      }
+    }
+    return 'customer';
+  }
+
   void _login() async {
     setState(() => _isLoading = true);
     String? error = await _authService.signIn(
@@ -29,20 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (error == null) {
       final user = _authService.currentUser;
       if (user != null) {
-        String role = 'customer';
-        try {
-          final doc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get()
-              .timeout(const Duration(seconds: 5));
-
-          if (doc.exists) {
-            role = doc.data()?['role'] ?? 'customer';
-          }
-        } catch (e) {
-          debugPrint('Firestore error: $e');
-        }
+        final role = await _fetchRole(user.uid);
 
         setState(() => _isLoading = false);
 
