@@ -248,6 +248,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProductCard(BuildContext context, Product product) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -262,23 +264,85 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: product.imageData != null && product.imageData!.isNotEmpty
-    ? Image.memory(
-        base64Decode(product.imageData!),
-        width: double.infinity,
-        fit: BoxFit.cover,
-      )
-    : Image.network(
-        product.imageUrl,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: Colors.grey[200],
-          child: const Icon(Icons.image_not_supported, color: Colors.grey),
-        ),
-      ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: product.imageData != null && product.imageData!.isNotEmpty
+                        ? Image.memory(
+                            base64Decode(product.imageData!),
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.network(
+                            product.imageUrl,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                            ),
+                          ),
+                  ),
+                  if (user != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('favorites')
+                            .where('userId', isEqualTo: user.uid)
+                            .where('productId', isEqualTo: product.id)
+                            .limit(1)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          final isFavorite = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+                          return GestureDetector(
+                            onTap: () async {
+                              if (isFavorite) {
+                                for (final doc in snapshot.data!.docs) {
+                                  await doc.reference.delete();
+                                }
+                              } else {
+                                await FirebaseFirestore.instance.collection('favorites').add({
+                                  'userId': user.uid,
+                                  'productId': product.id,
+                                  'productName': product.name,
+                                  'price': product.price,
+                                  'imageUrl': product.imageUrl,
+                                  'imageData': product.imageData,
+                                  'shopName': product.shopName,
+                                  'category': product.category,
+                                  'vendorId': product.vendorId,
+                                  'description': product.description,
+                                  'stock': product.stock,
+                                  'createdAt': FieldValue.serverTimestamp(),
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                isFavorite ? Icons.favorite : Icons.favorite_border,
+                                color: isFavorite ? Colors.red : Colors.grey[600],
+                                size: 18,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
               ),
             ),
             Padding(

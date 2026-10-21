@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
-import 'home_screen.dart';
+import 'main_navigation.dart';
 import 'vendor_dashboard.dart';
 import 'admin_dashboard.dart';
 
@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
           } else if (role == 'admin') {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboard()));
           } else {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainNavigation()));
           }
         }
         return;
