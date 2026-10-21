@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../services/order_service.dart';
 
 class MyOrdersScreen extends StatelessWidget {
   const MyOrdersScreen({super.key});
@@ -37,6 +38,31 @@ class MyOrdersScreen extends StatelessWidget {
         return Icons.cancel;
       default:
         return Icons.receipt_long;
+    }
+  }
+
+  void _cancelOrder(BuildContext context, Map<String, dynamic> order) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel this order?'),
+        content: const Text('The vendor will be notified and your refund will be processed when they confirm the cancellation.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await OrderService().cancelOrder(order.keys.first);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order cancelled'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -86,8 +112,9 @@ class MyOrdersScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
             itemBuilder: (context, index) {
-              final order = docs[index].data() as Map<String, dynamic>;
-              return _buildOrderCard(context, order);
+              final doc = docs[index];
+              final order = doc.data() as Map<String, dynamic>;
+              return _buildOrderCard(context, doc.id, order);
             },
           );
         },
@@ -95,7 +122,7 @@ class MyOrdersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order) {
+  Widget _buildOrderCard(BuildContext context, String orderId, Map<String, dynamic> order) {
     final status = order['status'] ?? 'Pending';
     final createdAt = order['createdAt'] as Timestamp?;
     final dateText = createdAt != null
@@ -106,6 +133,8 @@ class MyOrdersScreen extends StatelessWidget {
         .map((i) => i as Map<String, dynamic>)
         .toList();
 
+    final canCancel = status == 'Pending';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -113,7 +142,7 @@ class MyOrdersScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Store + date row
+            // Store + date + menu row
             Row(
               children: [
                 const Icon(Icons.store, size: 18, color: Color(0xFF2E7D32)),
@@ -122,9 +151,16 @@ class MyOrdersScreen extends StatelessWidget {
                   child: Text(
                     order['storeName'] ?? 'Store',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Text(dateText, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                if (canCancel)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    tooltip: 'Cancel Order',
+                    onPressed: () => _cancelOrder(context, {'$orderId': order}),
+                  ),
               ],
             ),
             const SizedBox(height: 8),

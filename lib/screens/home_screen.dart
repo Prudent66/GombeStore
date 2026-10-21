@@ -9,6 +9,7 @@ import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import 'my_orders_screen.dart';
 import 'login_screen.dart';
+import 'submit_complaint_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -74,16 +75,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     (route) => false,
                   );
                 }
+              } else if (value == 'support') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SubmitComplaintScreen()),
+                );
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'support',
+                child: Row(
+                  children: [
+                    const Icon(Icons.help_outline, size: 20),
+                    const SizedBox(width: 8),
+                    const Text('Help & Support'),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
                     Icon(Icons.logout, size: 20),
-                    SizedBox(width: 8),
-                    Text('Logout'),
+                    const SizedBox(width: 8),
+                    const Text('Logout'),
                   ],
                 ),
               ),

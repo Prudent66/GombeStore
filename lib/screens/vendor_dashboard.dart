@@ -7,6 +7,7 @@ import 'manage_products_screen.dart';
 import 'vendor_orders_screen.dart';
 import 'store_profile_screen.dart';
 import 'login_screen.dart';
+import 'submit_complaint_screen.dart';
 
 class VendorDashboard extends StatelessWidget {
   const VendorDashboard({super.key});
@@ -91,6 +92,13 @@ class VendorDashboard extends StatelessWidget {
               label: 'My Store Profile',
               color: Colors.purple,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StoreProfileScreen())),
+            ),
+            _buildActionButton(
+              context,
+              icon: Icons.help_outline,
+              label: 'Help & Support',
+              color: Colors.teal,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubmitComplaintScreen())),
             ),
           ],
         ),

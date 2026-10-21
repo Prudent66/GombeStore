@@ -5,6 +5,7 @@ import 'admin_shipping_screen.dart';
 import 'admin_seed_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_complaints_screen.dart';
+import 'submit_complaint_screen.dart';
 import 'admin_customers_screen.dart';
 import 'admin_revenue_screen.dart';
 import 'login_screen.dart';
@@ -100,6 +101,12 @@ class AdminDashboard extends StatelessWidget {
               icon: Icons.report_problem,
               label: 'Complaints & Refunds',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminComplaintsScreen())),
+            ),
+            _buildMenuItem(
+              context,
+              icon: Icons.support_agent,
+              label: 'Submit Complaint',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubmitComplaintScreen())),
             ),
           ],
         ),
