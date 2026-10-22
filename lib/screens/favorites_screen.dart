@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -112,11 +113,11 @@ class FavoritesScreen extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                     child: product.imageUrl.isNotEmpty
-                        ? Image.network(
-                            product.imageUrl,
+                        ? CachedNetworkImage(
+                            imageUrl: product.imageUrl,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorWidget: (_, __, ___) => Container(
                               color: Colors.grey[200],
                               child: const Icon(Icons.image_not_supported, size: 50),
                             ),

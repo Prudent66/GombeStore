@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,12 +32,12 @@ class ProductDetailScreen extends StatelessWidget {
         height: 300,
         fit: BoxFit.cover,
       )
-    : Image.network(
-        product.imageUrl,
+    : CachedNetworkImage(
+        imageUrl: product.imageUrl,
         width: double.infinity,
         height: 300,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
+        errorWidget: (context, error, stackTrace) => Container(
           height: 300,
           color: Colors.grey[200],
           child: const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
@@ -87,20 +88,26 @@ class ProductDetailScreen extends StatelessWidget {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
-          onPressed: () {
-            // This now adds the product to the global cart
-            Provider.of<CartService>(context, listen: false).addItem(product);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Added to Cart!'), backgroundColor: Color(0xFF2E7D32)),
-            );
-          },
+          onPressed: product.stock <= 0
+              ? null
+              : () {
+                  // This now adds the product to the global cart
+                  Provider.of<CartService>(context, listen: false).addItem(product);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Added to Cart!'), backgroundColor: Color(0xFF2E7D32)),
+                  );
+                },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF2E7D32),
+            disabledBackgroundColor: Colors.grey,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Add to Cart', style: TextStyle(fontSize: 18)),
+          child: Text(
+            product.stock <= 0 ? 'Out of Stock' : 'Add to Cart',
+            style: const TextStyle(fontSize: 18),
+          ),
         ),
       ),
     );

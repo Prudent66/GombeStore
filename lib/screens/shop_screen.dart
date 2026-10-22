@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
@@ -17,6 +18,7 @@ class _ShopScreenState extends State<ShopScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'All';
+  String? _selectedStore; // store name selected from the store strip
 
   final List<String> _categories = [
     'All',
@@ -100,7 +102,11 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      body: Column(
+        children: [
+          _buildStoreStrip(),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('products').snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -123,6 +129,13 @@ class _ShopScreenState extends State<ShopScreen> {
           if (_selectedCategory != 'All') {
             products = products
                 .where((p) => p.category == _selectedCategory)
+                .toList();
+          }
+
+          // Filter by store selection
+          if (_selectedStore != null) {
+            products = products
+                .where((p) => p.shopName == _selectedStore)
                 .toList();
           }
 
@@ -167,6 +180,65 @@ class _ShopScreenState extends State<ShopScreen> {
           );
         },
       ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "🏪 Store" chips above the catalog: pick a store (or search a store
+  /// by name) and the grid filters down to that seller only.
+  Widget _buildStoreStrip() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('products').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+
+        // Derive the store list live from the products that exist — no
+        // extra collection needed. Changes automatically as vendors list
+        // or remove their last product.
+        final stores = snapshot.data!.docs
+            .map((doc) => ((doc.data() as Map)['shopName'] ?? '') as String)
+            .where((n) => n.isNotEmpty)
+            .toSet()
+            .where((n) =>
+                _searchQuery.isEmpty ||
+                n.toLowerCase().contains(_searchQuery))
+            .toList()
+          ..sort();
+
+        if (stores.length <= 1) return const SizedBox.shrink();
+
+        return SizedBox(
+          height: 44,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 12, right: 12, top: 4),
+            itemCount: stores.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: const Text('All stores'),
+                    selected: _selectedStore == null,
+                    onSelected: (_) => setState(() => _selectedStore = null),
+                  ),
+                );
+              }
+              final name = stores[index - 1];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text('🏪 $name'),
+                  selected: _selectedStore == name,
+                  onSelected: (_) => setState(() => _selectedStore = name),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -194,11 +266,11 @@ class _ShopScreenState extends State<ShopScreen> {
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                     child: product.imageUrl.isNotEmpty
-                        ? Image.network(
-                            product.imageUrl,
+                        ? CachedNetworkImage(
+                            imageUrl: product.imageUrl,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorWidget: (_, __, ___) => Container(
                               color: Colors.grey[200],
                               child: const Icon(Icons.image_not_supported, size: 50),
                             ),

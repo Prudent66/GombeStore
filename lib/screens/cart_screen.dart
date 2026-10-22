@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/cart_service.dart';
@@ -27,12 +28,12 @@ class CartScreen extends StatelessWidget {
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: ListTile(
-                          leading: Image.network(
-                            product.imageUrl,
+                          leading: CachedNetworkImage(
+                            imageUrl: product.imageUrl,
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
-                            errorBuilder: (c, e, s) => const Icon(Icons.image, size: 50),
+                            errorWidget: (c, e, s) => const Icon(Icons.image, size: 50),
                           ),
                           title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle: Text('₦${product.price.toStringAsFixed(0)} x $quantity'),

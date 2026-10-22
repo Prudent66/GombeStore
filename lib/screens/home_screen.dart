@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
 import '../services/cart_service.dart';
@@ -28,6 +29,47 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _categories = [
     'All', 'Food & Grocery', 'Electronics', 'Fashion', 'Home & Living', 'Health'
   ];
+
+  // Phase 16 (quick wins): paginated product feed — the newest 30 products
+  // load first and "Load more products" appends older pages. A single
+  // orderBy avoids needing a composite index.
+  static const int _pageSize = 30;
+  List<Product> _pageProducts = [];
+  DocumentSnapshot<Object?>? _lastDoc;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPage(first: true);
+  }
+
+  Future<void> _loadPage({bool first = false}) async {
+    if (_loadingMore || (!first && !_hasMore)) return;
+    setState(() => _loadingMore = true);
+    try {
+      Query query = FirebaseFirestore.instance
+          .collection('products')
+          .orderBy('createdAt', descending: true)
+          .limit(_pageSize);
+      if (!first && _lastDoc != null) {
+        query = query.startAfterDocument(_lastDoc!);
+      }
+      final snapshot = await query.get();
+      final page = snapshot.docs.map((d) => Product.fromFirestore(d)).toList();
+      setState(() {
+        if (first) _pageProducts = page;
+        else _pageProducts.addAll(page);
+        if (snapshot.docs.isNotEmpty) _lastDoc = snapshot.docs.last;
+        _hasMore = snapshot.docs.length == _pageSize;
+      });
+    } catch (_) {
+      // Offline: keep whatever we already have; pull-to-refresh retries.
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,95 +197,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          // Products from Firestore
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('products')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                // Loading state
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                // Error state
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.red, size: 60),
-                          const SizedBox(height: 10),
-                          Text('Error loading products:\n${snapshot.error}',
-                              textAlign: TextAlign.center),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                // Empty state
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No products yet',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Vendors haven\'t added any products.\nPlease check back later.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                // Filter products
-                final allProducts = snapshot.data!.docs
-                    .map((doc) => Product.fromFirestore(doc))
-                    .where((p) => p.isAvailable)
-                    .toList();
-
-                final filtered = allProducts.where((product) {
-                  final matchesSearch = _searchQuery.isEmpty ||
-                      product.name.toLowerCase().contains(_searchQuery) ||
-                      product.shopName.toLowerCase().contains(_searchQuery);
-                  final matchesCategory =
-                      _selectedCategory == 'All' || product.category == _selectedCategory;
-                  return matchesSearch && matchesCategory;
-                }).toList();
-
-                if (filtered.isEmpty) {
-                  return const Center(child: Text('No products match your search.'));
-                }
-
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    return _buildProductCard(context, filtered[index]);
-                  },
-                );
-              },
-            ),
-          ),
+          // Paginated products feed (Phase 16 quick wins)
+          Expanded(child: _buildProductArea()),
         ],
       ),
     );
@@ -276,16 +231,32 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: double.infinity,
                             fit: BoxFit.cover,
                           )
-                        : Image.network(
-                            product.imageUrl,
+                        : CachedNetworkImage(
+                            imageUrl: product.imageUrl,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
+                            errorWidget: (context, error, stackTrace) => Container(
                               color: Colors.grey[200],
                               child: const Icon(Icons.image_not_supported, color: Colors.grey),
                             ),
                           ),
                   ),
+                  if (product.stock <= 0)
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'SOLD OUT',
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
                   if (user != null)
                     Positioned(
                       top: 8,
@@ -384,6 +355,91 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Paginated feed UI: current page set + a load-more tile at the end.
+  Widget _buildProductArea() {
+    final filtered = _pageProducts
+        .where((p) => p.isAvailable)
+        .where((p) =>
+            _searchQuery.isEmpty ||
+            p.name.toLowerCase().contains(_searchQuery) ||
+            p.shopName.toLowerCase().contains(_searchQuery))
+        .where((p) =>
+            _selectedCategory == 'All' || p.category == _selectedCategory)
+        .toList();
+
+    if (filtered.isEmpty && !_loadingMore && !_hasMore && _pageProducts.isNotEmpty) {
+      return const Center(child: Text('No products match your search.'));
+    }
+
+    if (!_loadingMore && _pageProducts.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => _loadPage(first: true),
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const SizedBox(height: 40),
+            const Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Center(child: Text('No products to show', style: TextStyle(fontSize: 16))),
+            const Center(
+              child: Text(
+                'Check your internet, then pull down or tap here to retry.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () => _loadPage(first: true),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _loadPage(first: true),
+      child: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.75,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: filtered.length + 1,
+        itemBuilder: (context, index) {
+          if (index == filtered.length) {
+            return _buildLoadMoreTile();
+          }
+          return _buildProductCard(context, filtered[index]);
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreTile() {
+    if (!_hasMore) {
+      return const Center(
+        child: Text('You have seen it all 🎉', style: TextStyle(fontSize: 12, color: Colors.grey)),
+      );
+    }
+    return Center(
+      child: _loadingMore
+          ? const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                height: 26,
+                width: 26,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : OutlinedButton(
+              onPressed: () => _loadPage(),
+              child: const Text('Load more products'),
+            ),
     );
   }
 }
