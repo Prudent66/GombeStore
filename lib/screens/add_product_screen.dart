@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -116,18 +117,32 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final shopName = userDoc.data()?['storeName'] ?? 'My Shop';
 
-      // Phase 12: upload the compressed image to Firebase Storage so Firestore
-      // documents stay small (1 MB doc limit); store the download URL instead
-      // of embedding base64 data.
+      // Phase 16b: try Firebase Storage first (small docs, cached URLs).
+      // If Storage is unavailable (e.g. the project is on the free Spark
+      // plan, which can't create buckets), fall back to embedding the
+      // compressed base64 image in Firestore like the legacy products.
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('products/${user.uid}/$timestamp.jpg');
-      final uploadSnapshot = await storageRef.putData(
-        _imageBytes!,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final imageUrl = await uploadSnapshot.ref.getDownloadURL();
+      String imageUrl = '';
+      String imageData = '';
+
+      try {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('products/${user.uid}/$timestamp.jpg');
+        final uploadSnapshot = await storageRef.putData(
+          _imageBytes!,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        imageUrl = await uploadSnapshot.ref.getDownloadURL();
+      } catch (storageError) {
+        // Free plan / offline / rules denial -> base64 fallback.
+        final kb = _imageBytes!.lengthInBytes / 1024;
+        if (kb > 900) {
+          throw 'Photo is too large to save right now (${kb.toStringAsFixed(0)} KB). '
+              'Try a smaller photo and add the product again.';
+        }
+        imageData = base64Encode(_imageBytes!);
+      }
 
       await FirebaseFirestore.instance.collection('products').add({
         'vendorId': user.uid,
@@ -136,8 +151,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'description': _descriptionController.text.trim(),
         'price': double.parse(_priceController.text.trim()),
         'category': _selectedCategory,
-        'imageUrl': imageUrl, // Firebase Storage download URL
-        'imageData': '', // legacy field: old products only (empty = none)
+        'imageUrl': imageUrl, // Firebase Storage URL (empty if fallback)
+        'imageData': imageData, // compressed base64 (empty if Storage used)
         'stock': int.parse(_stockController.text.trim()),
         'isAvailable': true,
         'createdAt': FieldValue.serverTimestamp(),
