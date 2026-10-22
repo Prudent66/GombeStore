@@ -102,6 +102,7 @@ class OrderService {
           'paymentStatus': paymentMethod == 'Cash on Delivery' ? 'N/A' : 'Unpaid',
           'status': 'Pending',
           'createdAt': timestamp,
+          'updatedAt': timestamp,
         });
         created.add({
           'id': orderRef.id,
@@ -144,6 +145,7 @@ class OrderService {
         .doc(orderId)
         .update({
       'status': flow[index + 1],
+      'updatedAt': FieldValue.serverTimestamp(),
       // Keep a timestamped trail so the customer can track the order.
       'statusHistory': FieldValue.arrayUnion([
         {'status': flow[index + 1], 'at': FieldValue.serverTimestamp()},
@@ -155,6 +157,7 @@ class OrderService {
   Future<void> cancelOrder(String orderId) async {
     await _firestore.collection('orders').doc(orderId).update({
       'status': 'Cancelled',
+      'updatedAt': FieldValue.serverTimestamp(),
       'statusHistory': FieldValue.arrayUnion([
         {'status': 'Cancelled', 'at': FieldValue.serverTimestamp()},
       ]),

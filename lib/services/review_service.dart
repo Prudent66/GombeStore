@@ -24,12 +24,13 @@ class ReviewService {
             ? userDoc.data()!['fullName'] as String
             : user.displayName ?? 'Customer';
 
-    await _firestore
+    final reviewRef = _firestore
         .collection('products')
         .doc(productId)
         .collection('reviews')
-        .doc(user.uid)
-        .set({
+        .doc(user.uid);
+
+    await reviewRef.set({
       'userId': user.uid,
       'userName': userName,
       'rating': rating.round(),
@@ -37,6 +38,26 @@ class ReviewService {
       'productName': productName,
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    // Phase 17: recompute the product's average/count right in the app with
+    // an aggregation query (free-plan friendly — no Cloud Function needed).
+    try {
+      final aggregate = await _firestore
+          .collection('products')
+          .doc(productId)
+          .collection('reviews')
+          .aggregate(count(), sum('rating'), average('rating'))
+          .get();
+      final int reviewCount = aggregate.count ?? 0;
+      final double? ratingAvg =
+          reviewCount > 0 ? aggregate.getAverage('rating') : null;
+      await _firestore.collection('products').doc(productId).update({
+        'reviewCount': reviewCount,
+        'ratingAvg': ratingAvg,
+      });
+    } catch (_) {
+      // Aggregation is an optimization; the badge hides itself if absent.
+    }
   }
 
   /// Loads the signed-in user's existing review (to prefill the editor).
