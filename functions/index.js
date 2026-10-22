@@ -10,7 +10,7 @@
  *  - Vendor push when a customer places an order.
  *  - Customer push when the vendor updates the order status.
  */
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onRequest } = require('firebase-functions/v2/https');
 const { initializeApp } = require('firebase-admin/app');
@@ -198,6 +198,41 @@ exports.paystackWebhook = onRequest(async (req, res) => {
     res.sendStatus(200); // always 200 so Paystack does not retry forever
   }
 });
+
+// ------------------------------------------------------------------
+// Reviews. When anyone writes/edits a review, recompute the product
+// document's ratingAvg / reviewCount so cards can show them cheaply.
+// ------------------------------------------------------------------
+exports.recalculateProductRating = onDocumentWritten(
+  'products/{productId}/reviews/{reviewId}',
+  async (event) => {
+    const productId = event.params.productId;
+    try {
+      const reviews = await db
+        .collection('products')
+        .doc(productId)
+        .collection('reviews')
+        .get();
+
+      let count = 0;
+      let sum = 0;
+      reviews.forEach((doc) => {
+        const rating = doc.data().rating;
+        if (typeof rating === 'number' && rating >= 1 && rating <= 5) {
+          count++;
+          sum += rating;
+        }
+      });
+
+      await db.collection('products').doc(productId).update({
+        reviewCount: count,
+        ratingAvg: count > 0 ? sum / count : null,
+      });
+    } catch (error) {
+      console.log('recalculateProductRating failed (ignored):', error);
+    }
+  }
+);
 
 // Shared: flip paymentStatus and notify the customer when it changes.
 async function markOrderPaid(orderRef, order, paid, paystackData) {

@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
 import '../services/cart_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/rating_badge.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import 'my_orders_screen.dart';
@@ -364,6 +365,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: Colors.grey[600], fontSize: 11),
                   ),
+                  if (product.hasReviews) ...[
+                    const SizedBox(height: 2),
+                    RatingBadge(ratingAvg: product.ratingAvg, reviewCount: product.reviewCount),
+                  ],
                   const SizedBox(height: 6),
                   Text(
                     '₦${product.price.toStringAsFixed(0)}',

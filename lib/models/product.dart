@@ -12,6 +12,8 @@ class Product {
   final String shopId;
   final int stock;
   final bool isAvailable;
+  final double? ratingAvg; // maintained by the recalculateProductRating function
+  final int reviewCount;
 
   Product({
     required this.id,
@@ -25,7 +27,12 @@ class Product {
     required this.shopId,
     this.stock = 0,
     this.isAvailable = true,
+    this.ratingAvg,
+    this.reviewCount = 0,
   });
+
+  /// Rating shown on product cards when the product has reviews.
+  bool get hasReviews => reviewCount > 0 && ratingAvg != null;
 
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -41,6 +48,8 @@ class Product {
       shopId: data['vendorId'] ?? '',
       stock: data['stock'] ?? 0,
       isAvailable: data['isAvailable'] ?? true,
+      ratingAvg: (data['ratingAvg'] is num) ? (data['ratingAvg'] as num).toDouble() : null,
+      reviewCount: (data['reviewCount'] ?? 0) is num ? (data['reviewCount'] as num).toInt() : 0,
     );
   }
 

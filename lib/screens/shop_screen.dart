@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
+import '../widgets/rating_badge.dart';
 import 'product_detail_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -294,6 +295,10 @@ class _ShopScreenState extends State<ShopScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (product.hasReviews) ...[
+                    const SizedBox(height: 2),
+                    RatingBadge(ratingAvg: product.ratingAvg, reviewCount: product.reviewCount),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     '₦${product.price.toStringAsFixed(0)}',
