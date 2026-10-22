@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../services/order_service.dart';
+import '../widgets/order_timeline.dart';
 
 class MyOrdersScreen extends StatelessWidget {
   const MyOrdersScreen({super.key});
@@ -217,6 +218,24 @@ class MyOrdersScreen extends StatelessWidget {
 
             // Delivery address (collapsed)
             const SizedBox(height: 8),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(left: 8, bottom: 8),
+              backgroundColor: Colors.transparent,
+              collapsedBackgroundColor: Colors.transparent,
+              dense: true,
+              leading: Icon(Icons.route, size: 20, color: _statusColor(status)),
+              title: const Text(
+                'Track order',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OrderTimeline(order: order),
+                ),
+              ],
+            ),
             Text(
               'Deliver to: ${order['address'] ?? ''}',
               maxLines: 2,

@@ -128,11 +128,22 @@ class OrderService {
     await _firestore
         .collection('orders')
         .doc(orderId)
-        .update({'status': flow[index + 1]});
+        .update({
+      'status': flow[index + 1],
+      // Keep a timestamped trail so the customer can track the order.
+      'statusHistory': FieldValue.arrayUnion([
+        {'status': flow[index + 1], 'at': FieldValue.serverTimestamp()},
+      ]),
+    });
   }
 
   /// Cancels an order (only makes sense before it is delivered).
   Future<void> cancelOrder(String orderId) async {
-    await _firestore.collection('orders').doc(orderId).update({'status': 'Cancelled'});
+    await _firestore.collection('orders').doc(orderId).update({
+      'status': 'Cancelled',
+      'statusHistory': FieldValue.arrayUnion([
+        {'status': 'Cancelled', 'at': FieldValue.serverTimestamp()},
+      ]),
+    });
   }
 }
