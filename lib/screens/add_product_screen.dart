@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 
@@ -23,7 +24,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String _selectedCategory = 'Food & Grocery';
   bool _isLoading = false;
   File? _pickedImage;
-  String? _base64Image;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
 
   final List<String> _categories = [
@@ -55,7 +56,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       setState(() {
         _pickedImage = file;
-        _base64Image = base64Encode(compressed);
+        _imageBytes = compressed;
       });
     } catch (e) {
       if (mounted) {
@@ -97,7 +98,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   void _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_base64Image == null) {
+    if (_imageBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a product image'), backgroundColor: Colors.red),
       );
@@ -115,6 +116,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final shopName = userDoc.data()?['storeName'] ?? 'My Shop';
 
+      // Phase 12: upload the compressed image to Firebase Storage so Firestore
+      // documents stay small (1 MB doc limit); store the download URL instead
+      // of embedding base64 data.
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('products/${user.uid}/$timestamp.jpg');
+      final uploadSnapshot = await storageRef.putData(
+        _imageBytes!,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final imageUrl = await uploadSnapshot.ref.getDownloadURL();
+
       await FirebaseFirestore.instance.collection('products').add({
         'vendorId': user.uid,
         'shopName': shopName,
@@ -122,8 +136,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'description': _descriptionController.text.trim(),
         'price': double.parse(_priceController.text.trim()),
         'category': _selectedCategory,
-        'imageData': _base64Image, // base64 encoded image
-        'imageUrl': '', // keep for backwards compat
+        'imageUrl': imageUrl, // Firebase Storage download URL
+        'imageData': '', // legacy field: old products only (empty = none)
         'stock': int.parse(_stockController.text.trim()),
         'isAvailable': true,
         'createdAt': FieldValue.serverTimestamp(),
