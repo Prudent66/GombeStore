@@ -82,7 +82,7 @@ class FavoritesScreen extends StatelessWidget {
                 stock: data['stock'] ?? 0,
               );
 
-              return _buildFavoriteItem(context, product);
+              return _buildFavoriteItem(context, product, fav);
             },
           );
         },
@@ -90,7 +90,7 @@ class FavoritesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFavoriteItem(BuildContext context, Product product) {
+  Widget _buildFavoriteItem(BuildContext context, Product product, DocumentSnapshot fav) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
