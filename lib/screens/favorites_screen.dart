@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -76,7 +77,7 @@ class FavoritesScreen extends StatelessWidget {
                 imageData: data['imageData'],
                 shopName: data['shopName'] ?? '',
                 category: data['category'] ?? '',
-                vendorId: data['vendorId'] ?? '',
+                shopId: data['vendorId'] ?? '',
                 description: data['description'] ?? '',
                 stock: data['stock'] ?? 0,
               );
@@ -118,10 +119,11 @@ class FavoritesScreen extends StatelessWidget {
                             errorBuilder: (_, __, ___) => Container(
                               color: Colors.grey[200],
                               child: const Icon(Icons.image_not_supported, size: 50),
-                            )
+                            ),
+                        )
                         : product.imageData != null
                             ? Image.memory(
-                                product.imageData!,
+                                base64Decode(product.imageData!),
                                 fit: BoxFit.cover,
                                 width: double.infinity,
                               )

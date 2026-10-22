@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
@@ -203,7 +204,7 @@ class _ShopScreenState extends State<ShopScreen> {
                           )
                         : product.imageData != null
                             ? Image.memory(
-                                product.imageData!,
+                                base64Decode(product.imageData!),
                                 fit: BoxFit.cover,
                                 width: double.infinity,
                               )

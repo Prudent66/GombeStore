@@ -58,4 +58,8 @@ class Product {
       'isAvailable': isAvailable,
     };
   }
+
+  /// Vendor identifier. Firestore stores products with a `vendorId` field,
+  /// which is mapped to [shopId] when reading (see [Product.fromFirestore]).
+  String get vendorId => shopId;
 }
