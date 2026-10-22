@@ -51,6 +51,36 @@ You should then see `notifyVendorOnNewOrder` and
 - If nothing arrives: Console → Functions → Logs, we ignore failures
   on purpose so a broken notification can never block checkout.
 
+## Paystack payments (Phase 14)
+
+To offer card/bank-transfer/USSD checkout:
+
+1. Create a Paystack account (paystack.com) and copy your **Secret key**
+   from Dashboard → Settings → API Keys & Webhooks.
+2. Store it as a Cloud Function secret — never in the repo:
+   ```bash
+   firebase functions:secrets:set PAYSTACK_SECRET_KEY
+   ```
+3. Redeploy to pick the secret up:
+   ```bash
+   firebase deploy --only functions
+   ```
+4. Console → your Paystack dashboard → Settings → API Keys & Webhooks →
+   set the webhook URL to:
+   ```
+   https://paystackwebhook-<your-project-hash>-<region>.a.run.app
+   ```
+   (the exact URL is printed by `firebase deploy --only functions`)
+5. Done. Checkout now shows "Pay with Paystack" alongside cash on
+   delivery. The order is confirmed `Paid` by either the webhook or the
+   customer tapping "Verify my payment", whichever comes first, and the
+   money lands in your Paystack account.
+
+Money flow: all Paystack orders are charged once per vendor order in
+the shop's main account. If you later want automatic splits to vendors,
+connect each vendor as a Paystack Subaccount and set `subaccount_code`
+in `createPaystackPayment`.
+
 ## Notes
 
 - Android 13+ shows the permission dialog on first app start

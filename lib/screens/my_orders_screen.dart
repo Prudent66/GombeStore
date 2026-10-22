@@ -243,7 +243,8 @@ class MyOrdersScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             Text(
-              'Payment: ${order['paymentMethod'] ?? 'Cash on Delivery'}',
+              'Payment: ${order['paymentMethod'] ?? 'Cash on Delivery'}'
+              '${order['paymentStatus'] == 'Paid' ? '  ✅ Paid' : ''}${order['paymentStatus'] == 'Unpaid' ? '  ⚠️ Unpaid' : ''}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],

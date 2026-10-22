@@ -11,8 +11,10 @@ class OrderService {
   /// order grandTotals equals what the customer saw at checkout.
   /// Also deducts the purchased quantity from each product's stock.
   ///
-  /// Returns null on success, or an error message on failure.
-  Future<String?> placeOrder({
+  /// Returns null on failure, or a list with one entry per created
+  /// order: {id, grandTotal, storeName, paymentMethod}. The IDs are used
+  /// by the Paystack payment flow right after checkout.
+  Future<List<Map<String, dynamic>>?> placeOrder({
     required List<Product> items,
     required Map<String, int> quantities,
     required String fullName,
@@ -24,10 +26,11 @@ class OrderService {
     required String landmark,
     required String instructions,
     required double shippingFee,
+    String paymentMethod = 'Cash on Delivery',
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return 'You must be logged in to place an order.';
+      if (user == null) return null;
 
       // Group cart items by vendor (each vendor gets their own order)
       final Map<String, List<Product>> byVendor = {};
@@ -41,6 +44,7 @@ class OrderService {
       final batch = _firestore.batch();
       final ordersRef = _firestore.collection('orders');
       final timestamp = FieldValue.serverTimestamp();
+      final List<Map<String, dynamic>> created = [];
 
       double remainingShipping = shippingFee;
 
@@ -71,8 +75,10 @@ class OrderService {
         // Shipping is charged once, on the first vendor's order
         final double thisShipping = remainingShipping;
         remainingShipping = 0;
+        final orderRef = ordersRef.doc();
+        final double grandTotal = productTotal + thisShipping;
 
-        batch.set(ordersRef.doc(), {
+        batch.set(orderRef, {
           'customerId': user.uid,
           'customerName': fullName,
           'customerPhone': phone,
@@ -82,7 +88,7 @@ class OrderService {
           'items': itemMaps,
           'productTotal': productTotal,
           'shippingFee': thisShipping,
-          'grandTotal': productTotal + thisShipping,
+          'grandTotal': grandTotal,
           'address': fullAddress,
           'deliveryAddress': {
             'lga': lga,
@@ -92,9 +98,16 @@ class OrderService {
             'landmark': landmark,
             'instructions': instructions,
           },
-          'paymentMethod': 'Cash on Delivery',
+          'paymentMethod': paymentMethod,
+          'paymentStatus': paymentMethod == 'Cash on Delivery' ? 'N/A' : 'Unpaid',
           'status': 'Pending',
           'createdAt': timestamp,
+        });
+        created.add({
+          'id': orderRef.id,
+          'grandTotal': grandTotal,
+          'storeName': vendorItems.first.shopName,
+          'paymentMethod': paymentMethod,
         });
       }
 
@@ -113,9 +126,10 @@ class OrderService {
         // Non-critical: stock already deducted, availability sync can fail silently
       }
 
-      return null;
+      return created;
     } catch (e) {
-      return 'Could not place order. Check your internet and try again.\n($e)';
+      // Errors never leak to the caller: they get a friendly message.
+      return null;
     }
   }
 

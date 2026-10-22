@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/cart_service.dart';
 import '../services/order_service.dart';
+import '../services/payment_service.dart';
 import 'my_orders_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -26,6 +28,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _instructionsController = TextEditingController();
 
   String _selectedLGA = 'Gombe Town'; // Default
+  String _paymentMethod = 'Cash on Delivery'; // or 'Paystack'
   bool _isPlacing = false;
 
   final List<String> _lgas = [
@@ -85,7 +88,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cart = Provider.of<CartService>(context, listen: false);
     setState(() => _isPlacing = true);
 
-    final error = await OrderService().placeOrder(
+    final createdOrders = await OrderService().placeOrder(
       items: cart.items,
       quantities: cart.quantities,
       fullName: _nameController.text.trim(),
@@ -97,29 +100,146 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       landmark: _landmarkController.text.trim(),
       instructions: _instructionsController.text.trim(),
       shippingFee: cart.getShippingFee(_selectedLGA),
+      paymentMethod: _paymentMethod,
     );
 
     if (!mounted) return;
     setState(() => _isPlacing = false);
 
-    if (error != null) {
+    if (createdOrders == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Could not place order. Check your internet and try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     cart.clearCart();
 
-    // Success dialog, then straight to My Orders
+    if (_paymentMethod == 'Paystack') {
+      await _handlePaystackPayments(createdOrders);
+      if (!mounted) return;
+    }
+
+    _showOrderPlacedDialog();
+  }
+
+  /// Walks the customer through Paystack for each vendor order created.
+  /// Paystack checkout opens in the browser; when they come back we ask
+  /// the backend to verify and update the order's paymentStatus.
+  Future<void> _handlePaystackPayments(List<Map<String, dynamic>> orders) async {
+    final payment = PaymentService();
+
+    for (final order in orders) {
+      final orderId = order['id'] as String;
+      final amount = (order['grandTotal'] as num?)?.toDouble() ?? 0;
+      final store = order['storeName'] as String? ?? 'Store';
+
+      final payNow = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.payment, color: Color(0xFF2E7D32), size: 48),
+          title: Text('Pay ₦${amount.toStringAsFixed(0)}'),
+          content: Text(
+            'Pay your $store order by card, bank transfer or USSD.\n'
+            'You can also pay later with cash on delivery.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Pay cash on delivery'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Pay now', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+      if (!payNow!) continue;
+
+      String? checkoutUrl;
+      try {
+        checkoutUrl = await payment.startPayment(orderId);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not start card payment. You can pay cash on delivery instead.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        continue;
+      }
+
+      await launchUrl(
+        Uri.parse(checkoutUrl),
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!mounted) return;
+
+      // Ask whether they finished, then verify with Paystack.
+      final done = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Finished paying?'),
+          content: Text(
+            'If you completed the payment in your browser, tap verify.\n\n'
+            'Still deciding? The order stays in My Orders as unpaid — '
+            'the vendor accepts cash on delivery.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Later')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Verify my payment', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+
+      if (done != true) continue;
+
+      bool paid = false;
+      try {
+        paid = await payment.verifyPayment(orderId);
+      } catch (_) {
+        paid = false;
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            paid
+                ? 'Payment confirmed ✅ $store will prepare your order.'
+                : 'Payment not confirmed yet — you can verify later in My Orders.',
+          ),
+          backgroundColor: paid ? const Color(0xFF2E7D32) : Colors.orange,
+        ),
+      );
+    }
+  }
+
+  void _showOrderPlacedDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         icon: const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 60),
         title: const Text('Order Placed!'),
-        content: const Text(
-          'Your order has been sent to the store(s).\nPay with cash on delivery.',
+        content: Text(
+          _paymentMethod == 'Paystack'
+              ? 'Your order has been sent to the store(s).\n'
+                  'Track payments and delivery under My Orders.'
+              : 'Your order has been sent to the store(s).\nPay with cash on delivery.',
           textAlign: TextAlign.center,
         ),
         actions: [
@@ -195,7 +315,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const Divider(),
               _summaryRow('Grand Total', '₦${cart.getGrandTotal(_selectedLGA).toStringAsFixed(0)}', isBold: true),
               const SizedBox(height: 6),
-              const Text('Payment Method: Cash on Delivery', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              Text('Payment Method', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              RadioListTile<String>(
+                value: 'Cash on Delivery',
+                groupValue: _paymentMethod,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                onChanged: (val) => setState(() => _paymentMethod = val!),
+                title: const Text('Cash on Delivery'),
+                subtitle: const Text('Pay the store when your order arrives', style: TextStyle(fontSize: 12)),
+              ),
+              RadioListTile<String>(
+                value: 'Paystack',
+                groupValue: _paymentMethod,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                secondary: const Icon(Icons.credit_card, color: Color(0xFF2E7D32)),
+                onChanged: (val) => setState(() => _paymentMethod = val!),
+                title: const Text('Pay with Paystack'),
+                subtitle: const Text('Card, bank transfer or USSD', style: TextStyle(fontSize: 12)),
+              ),
 
               const SizedBox(height: 30),
               SizedBox(
