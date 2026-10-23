@@ -9,6 +9,7 @@ import '../services/review_service.dart' show showReviewDialog;
 import '../models/product.dart';
 import '../services/cart_service.dart';
 import 'checkout_screen.dart';
+import 'delivery_returns_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -131,6 +132,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
+                  // Delivery estimate + Delivery & Returns (AliExpress-style card)
+                  _buildDeliveryCard(context),
+                  const SizedBox(height: 16),
                   // Description
                   const Text('Description', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
@@ -215,6 +219,68 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Shipping estimate + delivery/returns info, AliExpress-style.
+  Widget _buildDeliveryCard(BuildContext context) {
+    final now = DateTime.now();
+    final earliest = now.add(const Duration(days: 2));
+    final latest = now.add(const Duration(days: 4));
+    final fmt = DateFormat.MMMd();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_shipping, size: 20, color: Color(0xFF2E7D32)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Delivery: 2 – 4 days',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      '${fmt.format(earliest)} – ${fmt.format(latest)} (estimated)',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DeliveryReturnsScreen()),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.assignment_return, size: 20, color: Color(0xFF2E7D32)),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Delivery & Returns policy',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+                const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
