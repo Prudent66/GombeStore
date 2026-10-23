@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../services/review_service.dart' show showReviewDialog;
 import '../models/product.dart';
 import '../services/cart_service.dart';
+import 'checkout_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -119,34 +120,77 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
       ),
-      // Add to Cart Button (Bottom)
+      // Add to Cart + Buy Now (Bottom) — like the AliExpress-style bottom bar
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: product.stock <= 0
-              ? null
-              : () {
-                  // Adds the selected quantity to the global cart
-                  Provider.of<CartService>(context, listen: false).addItem(product, quantity: _qty);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Added $_qty × ${product.name} to Cart!'),
-                      backgroundColor: const Color(0xFF2E7D32),
-                    ),
-                  );
-                },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2E7D32),
-            disabledBackgroundColor: Colors.grey,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: Text(
-            product.stock <= 0 ? 'Out of Stock' : 'Add $_qty to Cart • ₦${(product.price * _qty).toStringAsFixed(0)}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18),
-          ),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: product.stock <= 0
+                    ? null
+                    : () {
+                        // Adds the selected quantity to the global cart
+                        Provider.of<CartService>(context, listen: false).addItem(product, quantity: _qty);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Added $_qty × ${product.name} to Cart!'),
+                            backgroundColor: const Color(0xFF2E7D32),
+                          ),
+                        );
+                      },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2E7D32),
+                  disabledForegroundColor: Colors.grey,
+                  side: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  product.stock <= 0
+                      ? 'Out of Stock'
+                      : 'Add $_qty to Cart',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: product.stock <= 0
+                    ? null
+                    : () {
+                        // Buy Now: put the selected quantity in the cart and
+                        // jump straight to checkout (everything in the cart
+                        // is ordered together at checkout).
+                        Provider.of<CartService>(context, listen: false).addItem(product, quantity: _qty);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B5E20),
+                  disabledBackgroundColor: Colors.grey,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  product.stock <= 0
+                      ? 'Out of Stock'
+                      : 'Buy Now • ₦${(product.price * _qty).toStringAsFixed(0)}',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
