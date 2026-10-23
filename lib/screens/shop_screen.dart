@@ -121,9 +121,23 @@ class _ShopScreenState extends State<ShopScreen> {
             );
           }
 
-          var products = snapshot.data!.docs
-              .map((doc) => Product.fromFirestore(doc))
-              .toList();
+          List<Product> parsed = [];
+          try {
+            parsed = snapshot.data!.docs
+                .map((doc) => Product.fromFirestore(doc))
+                .toList();
+          } catch (e, st) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SelectableText(
+                  'Debug: could not read products\n$e',
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                ),
+              ),
+            );
+          }
+          var products = parsed;
 
           // Filter by category
           if (_selectedCategory != 'All') {

@@ -57,13 +57,25 @@ class _HomeScreenState extends State<HomeScreen> {
         query = query.startAfterDocument(_lastDoc!);
       }
       final snapshot = await query.get();
-      final page = snapshot.docs.map((d) => Product.fromFirestore(d)).toList();
-      setState(() {
-        if (first) _pageProducts = page;
-        else _pageProducts.addAll(page);
-        if (snapshot.docs.isNotEmpty) _lastDoc = snapshot.docs.last;
-        _hasMore = snapshot.docs.length == _pageSize;
+    List<Product> loaded;
+    try {
+      loaded = snapshot.docs.map((d) => Product.fromFirestore(d)).toList();
+    } catch (e) {
+      Future.microtask(() {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Debug: product read error\n$e'), backgroundColor: Colors.red),
+          );
+        }
       });
+      loaded = [];
+    }
+    setState(() {
+      if (first) _pageProducts = loaded;
+      else _pageProducts.addAll(loaded);
+      if (snapshot.docs.isNotEmpty) _lastDoc = snapshot.docs.last;
+      _hasMore = snapshot.docs.length == _pageSize;
+    });
     } catch (_) {
       // Offline: keep whatever we already have; pull-to-refresh retries.
     } finally {

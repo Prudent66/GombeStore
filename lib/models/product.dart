@@ -36,20 +36,42 @@ class Product {
 
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    // Defensive numeric coercion: whether a value comes through as int,
+    // double, String ("3500") or null, this must never throw — one dirty
+    // document used to blank the entire customer catalog.
+    double toDouble(dynamic v) {
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0;
+      return 0;
+    }
+
+    int toInt(dynamic v) {
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? 0;
+      return 0;
+    }
+
+    double? toDoubleOrNull(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+      return null;
+    }
+
     return Product(
       id: doc.id,
-      name: data['name'] ?? 'Unknown Product',
-      description: data['description'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
-      category: data['category'] ?? 'Other',
-      imageUrl: data['imageUrl'] ?? '',
-      imageData: data['imageData'],
-      shopName: data['shopName'] ?? 'Unknown Shop',
-      shopId: data['vendorId'] ?? '',
-      stock: data['stock'] ?? 0,
-      isAvailable: data['isAvailable'] ?? true,
-      ratingAvg: (data['ratingAvg'] is num) ? (data['ratingAvg'] as num).toDouble() : null,
-      reviewCount: (data['reviewCount'] ?? 0) is num ? (data['reviewCount'] as num).toInt() : 0,
+      name: (data['name'] ?? 'Unknown Product').toString(),
+      description: (data['description'] ?? '').toString(),
+      price: toDouble(data['price']),
+      category: (data['category'] ?? 'Other').toString(),
+      imageUrl: (data['imageUrl'] ?? '').toString(),
+      imageData: (data['imageData'] as String?)?.isEmpty == true ? null : data['imageData'] as String?,
+      shopName: (data['shopName'] ?? 'Unknown Shop').toString(),
+      shopId: data['vendorId']?.toString() ?? '',
+      stock: toInt(data['stock']),
+      isAvailable: data['isAvailable'] is bool ? data['isAvailable'] as bool : true,
+      ratingAvg: toDoubleOrNull(data['ratingAvg']),
+      reviewCount: toInt(data['reviewCount']),
     );
   }
 
