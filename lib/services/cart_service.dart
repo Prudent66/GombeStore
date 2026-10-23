@@ -55,15 +55,34 @@ class CartService extends ChangeNotifier {
     return productTotal + getShippingFee(location);
   }
 
-  // Add item to cart
-  void addItem(Product product) {
+  // Add item to cart (quantity defaults to 1)
+  void addItem(Product product, {int quantity = 1}) {
+    final qty = quantity < 1 ? 1 : quantity;
     if (!_items.contains(product)) {
       _items.add(product);
-      _quantities[product.id] = 1;
+      _quantities[product.id] = qty;
     } else {
-      _quantities[product.id] = (_quantities[product.id] ?? 1) + 1;
+      _quantities[product.id] = (_quantities[product.id] ?? 1) + qty;
+    }
+    // Never allow more than the available stock.
+    if (product.stock > 0 && _quantities[product.id]! > product.stock) {
+      _quantities[product.id] = product.stock;
     }
     notifyListeners(); // Tells the UI to update
+  }
+
+  /// Increase/decrease a cart line by [delta], clamped between 1 and stock.
+  void changeQuantity(Product product, int delta) {
+    if (!_items.contains(product)) return;
+    final next = (_quantities[product.id] ?? 1) + delta;
+    if (next <= 0) {
+      removeItem(product);
+      return;
+    }
+    var clamped = next;
+    if (product.stock > 0 && clamped > product.stock) clamped = product.stock;
+    _quantities[product.id] = clamped;
+    notifyListeners();
   }
 
   // Remove item from cart

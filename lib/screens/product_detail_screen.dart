@@ -9,13 +9,21 @@ import '../services/review_service.dart' show showReviewDialog;
 import '../models/product.dart';
 import '../services/cart_service.dart';
 
-class ProductDetailScreen extends StatelessWidget {
+class ProductDetailScreen extends StatefulWidget {
   final Product product;
 
   const ProductDetailScreen({super.key, required this.product});
 
   @override
+  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+}
+
+class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  int _qty = 1;
+
+  @override
   Widget build(BuildContext context) {
+    final product = widget.product;
     return Scaffold(
       appBar: AppBar(
         title: Text(product.name),
@@ -72,6 +80,31 @@ class ProductDetailScreen extends StatelessWidget {
                     backgroundColor: Colors.grey[200],
                   ),
                   const SizedBox(height: 20),
+                  // Quantity selector (clamped to available stock)
+                  Row(
+                    children: [
+                      const Text('Quantity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: _qty <= 1 ? null : () => setState(() => _qty--),
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text(
+                        '$_qty',
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        onPressed: _qty >= product.stock ? null : () => setState(() => _qty++),
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'of ${product.stock} in stock',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                   // Description
                   const Text('Description', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
@@ -91,10 +124,13 @@ class ProductDetailScreen extends StatelessWidget {
           onPressed: product.stock <= 0
               ? null
               : () {
-                  // This now adds the product to the global cart
-                  Provider.of<CartService>(context, listen: false).addItem(product);
+                  // Adds the selected quantity to the global cart
+                  Provider.of<CartService>(context, listen: false).addItem(product, quantity: _qty);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Added to Cart!'), backgroundColor: Color(0xFF2E7D32)),
+                    SnackBar(
+                      content: Text('Added $_qty × ${product.name} to Cart!'),
+                      backgroundColor: const Color(0xFF2E7D32),
+                    ),
                   );
                 },
           style: ElevatedButton.styleFrom(
@@ -105,7 +141,8 @@ class ProductDetailScreen extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: Text(
-            product.stock <= 0 ? 'Out of Stock' : 'Add to Cart',
+            product.stock <= 0 ? 'Out of Stock' : 'Add $_qty to Cart • ₦${(product.price * _qty).toStringAsFixed(0)}',
+            textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 18),
           ),
         ),
