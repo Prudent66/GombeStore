@@ -30,7 +30,7 @@ class DeliveryReturnsScreen extends StatelessWidget {
             items: [
               'You may return a product within 3 days of delivery if it is damaged, wrong, or not as described.',
               'Perishables (e.g. fresh food) cannot be returned once accepted, but will be refunded if spoiled on arrival.',
-              'returned items should be unused and in their original packaging where possible.',
+              'Returned items should be unused and in their original packaging where possible.',
             ],
           ),
           _PolicySection(

@@ -14,6 +14,8 @@ class OrderService {
   /// Returns null on failure, or a list with one entry per created
   /// order: {id, grandTotal, storeName, paymentMethod}. The IDs are used
   /// by the Paystack payment flow right after checkout.
+  /// [variantNames] / [unitPrices] carry the customer's chosen option
+  /// (e.g. "8 Port USB") and the effective price per unit for it.
   Future<List<Map<String, dynamic>>?> placeOrder({
     required List<Product> items,
     required Map<String, int> quantities,
@@ -27,6 +29,8 @@ class OrderService {
     required String instructions,
     required double shippingFee,
     String paymentMethod = 'Cash on Delivery',
+    Map<String, String> variantNames = const {},
+    Map<String, double> unitPrices = const {},
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -57,13 +61,16 @@ class OrderService {
 
         for (final product in vendorItems) {
           final qty = quantities[product.id] ?? 1;
-          productTotal += product.price * qty;
+          final String? variantName = variantNames[product.id];
+          final unitPrice = unitPrices[product.id] ?? product.priceFor(variantName);
+          productTotal += unitPrice * qty;
           itemMaps.add({
             'productId': product.id,
             'name': product.name,
-            'price': product.price,
+            'price': unitPrice,
             'quantity': qty,
             'imageUrl': product.imageUrl,
+            if (variantName != null) 'variant': variantName,
           });
           // Deduct stock + count real sales on the product document
           batch.update(

@@ -173,7 +173,9 @@ class MyOrdersScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${item['name']}',
+                          item['variant'] != null && item['variant'].toString().isNotEmpty
+                              ? '${item['name']} — ${item['variant']}'
+                              : '${item['name']}',
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),

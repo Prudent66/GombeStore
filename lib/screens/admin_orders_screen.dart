@@ -55,7 +55,13 @@ class AdminOrdersScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
                         children: [
-                          Expanded(child: Text('${item['name']}')),
+                          Expanded(
+                            child: Text(
+                              item['variant'] != null && item['variant'].toString().isNotEmpty
+                                  ? '${item['name']} — ${item['variant']}'
+                                  : '${item['name']}',
+                            ),
+                          ),
                           Text('x${item['quantity']}', style: const TextStyle(color: Colors.grey)),
                           const SizedBox(width: 12),
                           Text('₦${((item['price'] ?? 0) as num).toStringAsFixed(0)}'),

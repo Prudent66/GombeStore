@@ -65,6 +65,15 @@ class ManageProductsScreen extends StatelessWidget {
                     onSelected: (value) async {
                       if (value == 'toggle') {
                         await doc.reference.update({'isAvailable': !isAvailable});
+                      } else if (value == 'rename') {
+                        final newName = await _promptText(
+                          context,
+                          title: 'Rename product',
+                          hintText: product['name'] ?? '',
+                        );
+                        if (newName != null && newName.trim().isNotEmpty) {
+                          await doc.reference.update({'name': newName.trim()});
+                        }
                       } else if (value == 'delete') {
                         final confirm = await showDialog<bool>(
                           context: context,
@@ -83,6 +92,10 @@ class ManageProductsScreen extends StatelessWidget {
                       }
                     },
                     itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'rename',
+                        child: Text('Rename'),
+                      ),
                       PopupMenuItem(
                         value: 'toggle',
                         child: Text(isAvailable ? 'Hide from customers' : 'Show to customers'),
@@ -98,6 +111,34 @@ class ManageProductsScreen extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+
+  /// Small dialog used to rename a product (e.g. fix a typo like
+  /// "Fresh Tomatoes (" without deleting and re-adding it).
+  Future<String?> _promptText(
+    BuildContext context, {
+    required String title,
+    String hintText = '',
+  }) async {
+    final controller = TextEditingController(text: hintText);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Save', style: TextStyle(color: Color(0xFF2E7D32))),
+          ),
+        ],
       ),
     );
   }

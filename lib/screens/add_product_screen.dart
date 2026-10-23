@@ -22,6 +22,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
 
+  /// Variant options the vendor can attach (e.g. "8 Port USB", ₦4500).
+  final List<TextEditingController> _variantNameControllers = [];
+  final List<TextEditingController> _variantPriceControllers = [];
+
   String _selectedCategory = 'Food & Grocery';
   bool _isLoading = false;
   File? _pickedImage;
@@ -144,7 +148,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         imageData = base64Encode(_imageBytes!);
       }
 
-      await FirebaseFirestore.instance.collection('products').add({
+      final productRef = await FirebaseFirestore.instance.collection('products').add({
         'vendorId': user.uid,
         'shopName': shopName,
         'name': _nameController.text.trim(),
@@ -157,6 +161,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'isAvailable': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Attach variant options directly to the created doc (never blocks).
+      try {
+        final variants = <Map<String, dynamic>>[];
+        for (var i = 0; i < _variantNameControllers.length; i++) {
+          final name = _variantNameControllers[i].text.trim();
+          if (name.isEmpty) continue;
+          final rawPrice = _variantPriceControllers[i].text.trim();
+          final price = rawPrice.isEmpty ? null : double.tryParse(rawPrice);
+          variants.add({'name': name, if (price != null) 'price': price});
+        }
+        if (variants.isNotEmpty) {
+          await productRef.update({'variants': variants});
+        }
+      } catch (_) {
+        // Non-critical: the product saved fine, options can be added later.
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -173,6 +194,77 @@ class _AddProductScreenState extends State<AddProductScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Variant options editor: dynamic rows of (option name, price).
+  /// Price is optional — an empty price means "same as the main price".
+  Widget _buildVariantEditor() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[400]!),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Options (variants)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 4),
+          const Text(
+            'Optional — e.g. "4 Port USB", "Red", "XL". Leave price blank to use the main price.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < _variantNameControllers.length; i++) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _variantNameControllers[i],
+                    decoration: const InputDecoration(
+                      labelText: 'Option name',
+                      hintText: 'e.g. 8 Port USB',
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _variantPriceControllers[i],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Price (₦)',
+                      hintText: 'main price',
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => setState(() {
+                    _variantNameControllers[i].dispose();
+                    _variantPriceControllers[i].dispose();
+                    _variantNameControllers.removeAt(i);
+                    _variantPriceControllers.removeAt(i);
+                  }),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          TextButton.icon(
+            onPressed: () => setState(() {
+              _variantNameControllers.add(TextEditingController());
+              _variantPriceControllers.add(TextEditingController());
+            }),
+            icon: const Icon(Icons.add),
+            label: const Text('Add option'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -244,6 +336,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (val) => setState(() => _selectedCategory = val!),
               ),
+              const SizedBox(height: 24),
+              // Variant options editor (e.g. colors / sizes / capacities)
+              _buildVariantEditor(),
               const SizedBox(height: 30),
               SizedBox(
                 width: double.infinity,

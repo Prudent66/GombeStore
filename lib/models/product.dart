@@ -1,5 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// A purchasable option of a product (e.g. "8 Port USB", "Red / XL").
+/// Price is optional: when null, the customer pays the product's main price.
+class Variant {
+  final String name;
+  final double? price;
+
+  Variant({required this.name, this.price});
+
+  bool get hasPrice => price != null;
+
+  Map<String, dynamic> toMap() => {
+        'name': name,
+        if (price != null) 'price': price,
+      };
+}
+
 class Product {
   final String id;
   final String name;
@@ -13,6 +29,7 @@ class Product {
   final int stock;
   final bool isAvailable;
   final int soldCount; // real sales, incremented when an order is placed
+  final List<Variant> variants; // purchasable options (e.g. colors/sizes)
   final double? ratingAvg; // maintained by the recalculateProductRating function
   final int reviewCount;
 
@@ -29,9 +46,19 @@ class Product {
     this.stock = 0,
     this.isAvailable = true,
     this.soldCount = 0,
+    this.variants = const [],
     this.ratingAvg,
     this.reviewCount = 0,
   });
+
+  /// Variant options never override the main price unless they carry one.
+  double priceFor(String? variantName) {
+    if (variantName == null) return price;
+    for (final v in variants) {
+      if (v.name == variantName && v.hasPrice) return v.price!;
+    }
+    return price;
+  }
 
   /// Rating shown on product cards when the product has reviews.
   bool get hasReviews => reviewCount > 0 && ratingAvg != null;
@@ -73,6 +100,7 @@ class Product {
       stock: toInt(data['stock']),
       isAvailable: data['isAvailable'] is bool ? data['isAvailable'] as bool : true,
       soldCount: toInt(data['soldCount']),
+      variants: _parseVariants(data['variants']),
       ratingAvg: toDoubleOrNull(data['ratingAvg']),
       reviewCount: toInt(data['reviewCount']),
     );
@@ -96,4 +124,26 @@ class Product {
   /// Vendor identifier. Firestore stores products with a `vendorId` field,
   /// which is mapped to [shopId] when reading (see [Product.fromFirestore]).
   String get vendorId => shopId;
+
+  /// Defensive variant parsing: tolerate missing/malformed entries so no
+  /// single bad document can blank the catalog.
+  static List<Variant> _parseVariants(dynamic raw) {
+    final out = <Variant>[];
+    if (raw is! List) return out;
+    for (final entry in raw) {
+      try {
+        if (entry is! Map) continue;
+        final name = (entry['name'] ?? '').toString().trim();
+        if (name.isEmpty) continue;
+        final rawPrice = entry['price'];
+        final price = rawPrice == null
+            ? null
+            : (rawPrice is num ? rawPrice.toDouble() : double.tryParse(rawPrice.toString()));
+        out.add(Variant(name: name, price: price));
+      } catch (_) {
+        // Skip malformed entries.
+      }
+    }
+    return out;
+  }
 }

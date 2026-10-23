@@ -101,6 +101,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       instructions: _instructionsController.text.trim(),
       shippingFee: cart.getShippingFee(_selectedLGA),
       paymentMethod: _paymentMethod,
+      variantNames: cart.variantNames,
+      unitPrices: cart.unitPrices,
     );
 
     if (!mounted) return;

@@ -27,6 +27,8 @@ class CartScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final product = cart.items[index];
                       final quantity = cart.quantities[product.id] ?? 1;
+                      final variant = cart.variantNameOf(product.id);
+                      final unitPrice = cart.unitPriceOf(product);
                       final atMax = product.stock > 0 && quantity >= product.stock;
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -46,14 +48,27 @@ class CartScreen extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(fontWeight: FontWeight.bold),
                                     ),
+                                    if (variant != null) ...[
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        variant,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF2E7D32),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 2),
                                     Text(
-                                      '₦${product.price.toStringAsFixed(0)} each',
+                                      '₦${unitPrice.toStringAsFixed(0)} each',
                                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '₦${(product.price * quantity).toStringAsFixed(0)}',
+                                      '₦${(unitPrice * quantity).toStringAsFixed(0)}',
                                       style: const TextStyle(
                                         color: Color(0xFF2E7D32),
                                         fontWeight: FontWeight.bold,

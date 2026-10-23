@@ -22,8 +22,18 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _qty = 1;
+  Variant? _selectedVariant;
 
   Product get product => widget.product;
+
+  double get _unitPrice => product.priceFor(_selectedVariant?.name);
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-select the first option, AliExpress-style, when variants exist.
+    if (product.variants.isNotEmpty) _selectedVariant = product.variants.first;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +82,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
-                  // Price
+                  // Price (updates when a variant with its own price is selected)
                   Text(
-                    '₦${product.price.toStringAsFixed(0)}',
+                    '₦${_unitPrice.toStringAsFixed(0)}',
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
                   ),
                   const SizedBox(height: 20),
+                  // Variant option picker (only when the product has options)
+                  if (product.variants.isNotEmpty) ...[
+                    const Text('Select option', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: product.variants
+                          .map(
+                            (v) => ChoiceChip(
+                              label: Text(
+                                v.hasPrice ? '${v.name} • ₦${v.price!.toStringAsFixed(0)}' : v.name,
+                                style: TextStyle(
+                                  color: _selectedVariant?.name == v.name ? Colors.white : Colors.black87,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              selected: _selectedVariant?.name == v.name,
+                              selectedColor: const Color(0xFF2E7D32),
+                              backgroundColor: Colors.grey[200],
+                              onSelected: (_) => setState(() => _selectedVariant = v),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   // Category
                   Chip(
                     label: Text(product.category),
@@ -157,11 +194,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 onPressed: product.stock <= 0
                     ? null
                     : () {
-                        // Adds the selected quantity to the global cart
-                        Provider.of<CartService>(context, listen: false).addItem(product, quantity: _qty);
+                        // Adds the selected quantity + option to the global cart
+                        Provider.of<CartService>(context, listen: false)
+                            .addItem(product, quantity: _qty, variantName: _selectedVariant?.name);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Added $_qty × ${product.name} to Cart!'),
+                            content: Text('Added $_qty × ${product.name}${_selectedVariant != null ? ' (${_selectedVariant!.name})' : ''} to Cart!'),
                             backgroundColor: const Color(0xFF2E7D32),
                           ),
                         );
@@ -190,10 +228,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 onPressed: product.stock <= 0
                     ? null
                     : () {
-                        // Buy Now: put the selected quantity in the cart and
-                        // jump straight to checkout (everything in the cart
-                        // is ordered together at checkout).
-                        Provider.of<CartService>(context, listen: false).addItem(product, quantity: _qty);
+                        // Buy Now: put the selected quantity + option in the
+                        // cart and jump straight to checkout (everything in
+                        // the cart is ordered together at checkout).
+                        Provider.of<CartService>(context, listen: false)
+                            .addItem(product, quantity: _qty, variantName: _selectedVariant?.name);
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const CheckoutScreen()),
@@ -209,7 +248,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Text(
                   product.stock <= 0
                       ? 'Out of Stock'
-                      : 'Buy Now • ₦${(product.price * _qty).toStringAsFixed(0)}',
+                      : 'Buy Now • ₦${(_unitPrice * _qty).toStringAsFixed(0)}',
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
