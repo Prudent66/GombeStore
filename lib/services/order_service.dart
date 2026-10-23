@@ -65,10 +65,13 @@ class OrderService {
             'quantity': qty,
             'imageUrl': product.imageUrl,
           });
-          // Deduct stock on the product document
+          // Deduct stock + count real sales on the product document
           batch.update(
             _firestore.collection('products').doc(product.id),
-            {'stock': FieldValue.increment(-qty)},
+            {
+              'stock': FieldValue.increment(-qty),
+              'soldCount': FieldValue.increment(qty),
+            },
           );
         }
 
@@ -154,7 +157,15 @@ class OrderService {
   }
 
   /// Cancels an order (only makes sense before it is delivered).
+  /// Also gives the stock back and uncounts the sale for every item,
+  /// so 'sold' numbers and availability stay truthful.
   Future<void> cancelOrder(String orderId) async {
+    final doc = await _firestore.collection('orders').doc(orderId).get();
+    if (!doc.exists) return;
+    final data = doc.data()!;
+    final status = data['status']?.toString() ?? '';
+    if (status == 'Cancelled') return; // idempotent — never double-refund stock
+
     await _firestore.collection('orders').doc(orderId).update({
       'status': 'Cancelled',
       'updatedAt': FieldValue.serverTimestamp(),
@@ -162,5 +173,22 @@ class OrderService {
         {'status': 'Cancelled', 'at': FieldValue.serverTimestamp()},
       ]),
     });
+
+    // Restore stock + sold count (non-critical if it fails)
+    try {
+      final items = (data['items'] as List?) ?? [];
+      for (final item in items) {
+        final map = (item as Map).cast<String, dynamic>();
+        final productId = map['productId']?.toString();
+        final qty = ((map['quantity'] as num?) ?? 1).toInt();
+        if (productId == null || qty <= 0) continue;
+        await _firestore.collection('products').doc(productId).update({
+          'stock': FieldValue.increment(qty),
+          'soldCount': FieldValue.increment(-qty),
+        });
+      }
+    } catch (_) {
+      // Stock restore is best-effort; order cancellation itself succeeded.
+    }
   }
 }

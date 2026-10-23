@@ -82,6 +82,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     label: Text(product.category),
                     backgroundColor: Colors.grey[200],
                   ),
+                  // Social proof: ratings + real sales count
+                  if (product.soldCount > 0 || (product.hasReviews)) ...[
+                    Row(
+                      children: [
+                        if (product.hasReviews) ...[
+                          const Icon(Icons.star, size: 16, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${product.ratingAvg?.toStringAsFixed(1)} (${product.reviewCount} reviews)',
+                            style: const TextStyle(fontSize: 13, color: Colors.black87),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
+                        Icon(Icons.local_fire_department, size: 16, color: Colors.orange[700]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${product.soldCount} sold',
+                          style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   const SizedBox(height: 20),
                   // Quantity selector (clamped to available stock)
                   Row(

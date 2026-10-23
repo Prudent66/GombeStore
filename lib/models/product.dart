@@ -12,6 +12,7 @@ class Product {
   final String shopId;
   final int stock;
   final bool isAvailable;
+  final int soldCount; // real sales, incremented when an order is placed
   final double? ratingAvg; // maintained by the recalculateProductRating function
   final int reviewCount;
 
@@ -27,6 +28,7 @@ class Product {
     required this.shopId,
     this.stock = 0,
     this.isAvailable = true,
+    this.soldCount = 0,
     this.ratingAvg,
     this.reviewCount = 0,
   });
@@ -70,6 +72,7 @@ class Product {
       shopId: data['vendorId']?.toString() ?? '',
       stock: toInt(data['stock']),
       isAvailable: data['isAvailable'] is bool ? data['isAvailable'] as bool : true,
+      soldCount: toInt(data['soldCount']),
       ratingAvg: toDoubleOrNull(data['ratingAvg']),
       reviewCount: toInt(data['reviewCount']),
     );
