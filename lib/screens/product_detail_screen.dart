@@ -21,6 +21,8 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _qty = 1;
 
+  Product get product => widget.product;
+
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
