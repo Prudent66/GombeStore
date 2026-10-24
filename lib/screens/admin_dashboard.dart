@@ -8,6 +8,10 @@ import 'admin_complaints_screen.dart';
 import 'submit_complaint_screen.dart';
 import 'admin_customers_screen.dart';
 import 'admin_revenue_screen.dart';
+import 'vendor_dashboard.dart' show VendorDashboard;
+
+/// Shared brand green for the dashboards.
+const Color _brand = Color(0xFF2E7D32);
 
 /// Phase 20: redesigned admin dashboard — tabbed shell with a Material
 /// bottom navigation bar (Overview / Orders / Approvals / Tools).
@@ -20,8 +24,6 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   int _tab = 0;
-
-  static const _brand = Color(0xFF2E7D32);
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +43,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         indicatorColor: _brand.withOpacity(0.15),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outline),
+            icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Overview',
           ),
@@ -457,7 +459,7 @@ class _AdminToolsTab extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: it.builder),
+                MaterialPageRoute(builder: (_) => it.builder()),
               ),
             ),
           );
@@ -474,4 +476,57 @@ class MenuTileEntry {
   final Widget Function() builder;
 
   const MenuTileEntry(this.icon, this.label, this.color, this.builder);
+}
+
+/// Quick-action tile with a colored rounded icon (same as the vendor one).
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 6)],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -9,6 +9,9 @@ import 'store_profile_screen.dart';
 import 'login_screen.dart';
 import 'submit_complaint_screen.dart';
 
+/// Shared brand green for the dashboards.
+const Color _brand = Color(0xFF2E7D32);
+
 /// Phase 20: redesigned vendor dashboard — a tabbed shell with a Material
 /// bottom navigation bar (Overview / Products / Orders / Store).
 class VendorDashboard extends StatefulWidget {
@@ -32,8 +35,6 @@ class VendorDashboard extends StatefulWidget {
 class _VendorDashboardState extends State<VendorDashboard> {
   int _tab = 0;
 
-  static const _brand = Color(0xFF2E7D32);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,7 +53,7 @@ class _VendorDashboardState extends State<VendorDashboard> {
         indicatorColor: _brand.withOpacity(0.15),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outline),
+            icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Overview',
           ),
