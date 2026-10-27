@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import '../services/ai_service.dart';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
@@ -31,6 +32,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   File? _pickedImage;
   Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
+  final AiService _ai = AiService();
+  bool _aiLoading = false;
 
   final List<String> _categories = [
     'Food & Grocery', 'Electronics', 'Fashion', 'Home & Living',
@@ -99,6 +102,67 @@ class _AddProductScreenState extends State<AddProductScreen> {
         ),
       ),
     );
+  }
+
+  /// Phase 21: let Gemini write the description from the product name
+  /// (vendor can always edit the result before saving).
+  Future<void> _generateDescription() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Type the product name first'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    final replacing = _descriptionController.text.trim().isNotEmpty;
+    if (replacing) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Replace description?'),
+          content: const Text('Generate an AI description and replace the text you already wrote?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Replace', style: TextStyle(color: Color(0xFF2E7D32))),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    setState(() => _aiLoading = true);
+    try {
+      final text = await _ai.generateDescription(
+        name: name,
+        category: _selectedCategory,
+        shopName: 'your store',
+      );
+      if (!mounted) return;
+      if (text == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('AI not configured yet — add your Gemini key to Firestore settings/ai (field geminiKey).'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      setState(() => _descriptionController.text = text);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Description generated — edit it as you like'), backgroundColor: Color(0xFF2E7D32)),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'.replaceFirst('Exception: ', '')), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _aiLoading = false);
+    }
   }
 
   void _saveProduct() async {
@@ -314,6 +378,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 maxLines: 3,
                 decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
                 validator: (val) => val!.isEmpty ? 'Required' : null,
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _aiLoading ? null : _generateDescription,
+                  icon: _aiLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome, size: 18),
+                  label: Text(_aiLoading ? 'Generating…' : 'Generate with AI'),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
